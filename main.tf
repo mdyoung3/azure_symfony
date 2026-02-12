@@ -17,6 +17,7 @@ provider "azurerm" {
 resource "azurerm_resource_group" "main" {
   location = var.location
   name     = var.project_name
+  tags = var.common_tags
 }
 
 resource "azurerm_virtual_network" "main" {
@@ -24,6 +25,7 @@ resource "azurerm_virtual_network" "main" {
   location            = var.location
   name                = "${var.environment}-network"
   resource_group_name = azurerm_resource_group.main.name
+  tags = var.common_tags
 }
 
 resource "azurerm_network_security_group" "main" {
@@ -42,6 +44,8 @@ resource "azurerm_network_security_group" "main" {
     source_address_prefix      = var.ip_address
     destination_address_prefix = "*"
   }
+
+  tags = var.common_tags
 }
 
 resource "azurerm_subnet_network_security_group_association" "main" {
@@ -94,6 +98,8 @@ resource "azurerm_linux_virtual_machine" "main" {
     storage_account_type = "Standard_LRS"
     caching              = "ReadWrite"
   }
+
+  tags = var.common_tags
 }
 
 resource "azurerm_public_ip" "external" {

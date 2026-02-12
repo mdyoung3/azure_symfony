@@ -27,3 +27,15 @@ variable "virtual_machine_size" {
   description = "Name of the virtual machine"
   default     = "Standard_B2s_v2"
 }
+
+variable "common_tags" {
+  type = map(string)
+  default = {
+    environment          = "dev"
+    project              = "secure-web-hosting"
+    data_classification  = "cui"
+    compliance_framework = "NIST-800-171"
+    managed_by           = "terraform"
+    owner                = "marco"
+  }
+}
