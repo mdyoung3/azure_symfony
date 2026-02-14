@@ -6,6 +6,10 @@ terraform {
       source  = "hashicorp/azurerm"
       version = "=4.1.0"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "3.6.2"
+    }
   }
 }
 
@@ -17,7 +21,7 @@ provider "azurerm" {
 resource "azurerm_resource_group" "main" {
   location = var.location
   name     = var.project_name
-  tags = var.common_tags
+  tags     = var.common_tags
 }
 
 resource "azurerm_virtual_network" "main" {
@@ -25,7 +29,7 @@ resource "azurerm_virtual_network" "main" {
   location            = var.location
   name                = "${var.environment}-network"
   resource_group_name = azurerm_resource_group.main.name
-  tags = var.common_tags
+  tags                = var.common_tags
 }
 
 resource "azurerm_network_security_group" "main" {
@@ -84,13 +88,13 @@ resource "azurerm_linux_virtual_machine" "main" {
 
   admin_ssh_key {
     username   = "adminuser"
-    public_key = file("~/.ssh/azure.pub")
+    public_key = azurerm_key_vault_secret.ssh_public_key.value
   }
 
   source_image_reference {
     publisher = "Canonical"
     offer     = "0001-com-ubuntu-server-jammy"
-    sku       = "22_04-lts"
+    sku       = "22_04-lts-arm64"
     version   = "latest"
   }
 
@@ -98,6 +102,8 @@ resource "azurerm_linux_virtual_machine" "main" {
     storage_account_type = "Standard_LRS"
     caching              = "ReadWrite"
   }
+
+  custom_data = base64encode(file("templates/startup_script.sh.tpl"))
 
   tags = var.common_tags
 }
@@ -107,4 +113,39 @@ resource "azurerm_public_ip" "external" {
   location            = azurerm_resource_group.main.location
   name                = "external"
   resource_group_name = azurerm_resource_group.main.name
+}
+
+resource "azurerm_key_vault" "main" {
+  location            = azurerm_resource_group.main.location
+  name                = "securityAssets"
+  resource_group_name = azurerm_resource_group.main.name
+  sku_name            = "standard"
+  tenant_id           = data.azurerm_client_config.current.tenant_id
+  tags                = var.common_tags
+
+  access_policy {
+    tenant_id = data.azurerm_client_config.current.tenant_id
+    object_id = data.azurerm_client_config.current.object_id
+
+    secret_permissions = [
+      "Get",
+      "List",
+      "Set",
+      "Delete"
+    ]
+  }
+}
+
+data "azurerm_client_config" "current" {}
+
+resource "random_string" "suffix" {
+  length  = 6
+  special = false
+  upper   = false
+}
+
+resource "azurerm_key_vault_secret" "ssh_public_key" {
+  name         = "vm-ssh-public-key"
+  value        = file("~/.ssh/azure.pub")
+  key_vault_id = azurerm_key_vault.main.id
 }
